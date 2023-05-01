@@ -1,9 +1,10 @@
-import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useState } from "react";
 import { Image, Keyboard, StyleSheet, View } from "react-native";
 import {
   Button,
   HelperText,
+  IconButton,
+  Modal,
   Snackbar,
   Text,
   TextInput,
@@ -14,10 +15,13 @@ import useCrawler from "./hooks/useCrawler";
 
 import Classifier from "classificator";
 
-const AppScreen = ({ theme }) => {
+const AppScreen = ({ theme, navigation }) => {
   const [text, setText] = useState("");
   const [isError, setIsError] = useState(false);
   const [showSnackbar, setShowSnackbar] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [result, setResult] = useState({});
+  const [errorMsg, setErrorMsg] = useState("");
 
   const { colors } = theme;
 
@@ -34,6 +38,7 @@ const AppScreen = ({ theme }) => {
     Keyboard.dismiss();
     // Regular expression for matching Amazon product URLs
     if (url === "") {
+      setErrorMsg("Paste amazon product link first.");
       return setShowSnackbar(true);
     }
     var pattern =
@@ -81,12 +86,13 @@ const AppScreen = ({ theme }) => {
       const overallScore = score / res.reviews.length;
       const avgRatings = totalStars / res.ratings.length;
 
-      console.log({
-        "Sentiment predictions": predictions,
-        "Avg Ratings": avgRatings,
-        "Some reviews": overallScore,
-        "Overall score": (avgRatings + overallScore) / 2,
+      setResult({
+        sentiment_predictions: predictions,
+        avg_ratings: avgRatings,
+        some_reviews: overallScore,
+        overall_score: (avgRatings + overallScore) / 2,
       });
+      setShowModal(true);
     } else {
       setIsError(true);
     }
@@ -108,52 +114,64 @@ const AppScreen = ({ theme }) => {
 
   return (
     <SafeAreaView style={styles.screen}>
-      <View style={styles.container}>
-        <Image source={require("../assets/app-logo.png")} style={styles.img} />
-      </View>
-      <View style={styles.container}>
-        <TextInput
-          mode="flat"
-          label="Product Link"
-          autoComplete="off"
-          autoCapitalize="none"
-          autoCorrect={false}
-          value={text}
-          style={styles.textInput}
-          onChangeText={(text) => setText(text)}
-          right={
-            <TextInput.Icon
-              icon="close"
-              size={20}
-              onPress={() => {
-                setText("");
-                setIsError(false);
-              }}
-              style={{ display: text ? "flex" : "none" }}
-            />
-          }
+      <View style={{ alignSelf: "flex-end" }}>
+        <IconButton
+          icon="progress-question"
+          size={28}
+          onPress={() => navigation.navigate("How")}
         />
-        <HelperText
-          type="error"
-          visible={isError}
-          style={{ color: colors.danger }}
-        >
-          Not valid amazon product!
-        </HelperText>
       </View>
+      <View style={{ position: "absolute", left: 0, right: 0, top: "10%" }}>
+        <View style={styles.container}>
+          <Image
+            source={require("../assets/app-logo.png")}
+            style={styles.img}
+          />
+        </View>
+        <View style={styles.container}>
+          <TextInput
+            mode="flat"
+            label="Product Link"
+            autoComplete="off"
+            autoCapitalize="none"
+            autoCorrect={false}
+            value={text}
+            style={styles.textInput}
+            onChangeText={(text) => setText(text)}
+            right={
+              <TextInput.Icon
+                icon="close"
+                size={20}
+                onPress={() => {
+                  setText("");
+                  setIsError(false);
+                }}
+                style={{ display: text ? "flex" : "none" }}
+              />
+            }
+          />
+          <HelperText
+            type="error"
+            visible={isError}
+            style={{ color: colors.danger }}
+          >
+            Not valid amazon product!
+          </HelperText>
+        </View>
 
-      <View style={[styles.container, { marginBottom: 15 }]}>
-        <Button
-          uppercase
-          mode="contained"
-          onPress={() => handleAnalyzeBtn(text)}
-          style={styles.button}
-          contentStyle={styles.buttonContent}
-          loading={isLoading}
-          disabled={isLoading}
-        >
-          {isLoading ? "Analyzing" : "Analyze"}
-        </Button>
+        <View style={[styles.container, { marginBottom: 15 }]}>
+          <Button
+            uppercase
+            mode="contained"
+            onPress={() => handleAnalyzeBtn(text)}
+            style={styles.button}
+            contentStyle={styles.buttonContent}
+            loading={isLoading}
+            disabled={isLoading}
+          >
+            {isLoading ? "Analyzing" : "Analyze"}
+          </Button>
+        </View>
       </View>
 
       {/* SNACKBAR */}
@@ -168,9 +186,50 @@ const AppScreen = ({ theme }) => {
           },
         }}
       >
-        Paste amazon product first.
+        {errorMsg}
       </Snackbar>
-      <StatusBar style="auto" />
+
+      {/* Modal */}
+      <Modal
+        visible={showModal}
+        onDismiss={() => {
+          setErrorMsg("Click Done to close modal.");
+          setShowSnackbar(true);
+        }}
+        contentContainerStyle={{
+          backgroundColor: "white",
+          padding: 20,
+          marginHorizontal: 20,
+          borderRadius: 10,
+        }}
+      >
+        <Text>Average Ratings: {result?.avg_ratings?.toFixed(2)}</Text>
+        <Text>Some Reviews: {result?.some_reviews?.toFixed(2)}</Text>
+        <Text>Overall Score: {result?.overall_score?.toFixed(2)}</Text>
+        <Text>
+          Worth To Buy?{" "}
+          {result?.overall_score?.toFixed(2) > 3
+            ? "Yes"
+            : result?.overall_score?.toFixed(2) == 3
+            ? "Maybe"
+            : result?.overall_score?.toFixed(2) <= 3 && "It depends to you"}
+        </Text>
+
+        <View style={{ alignItems: "center", marginTop: 10 }}>
+          <Button
+            mode="contained-tonal"
+            onPress={() => setShowModal(false)}
+            style={{
+              width: 100,
+              borderRadius: 5,
+              backgroundColor: colors.success,
+            }}
+            labelStyle={{ color: colors.white }}
+          >
+            Done
+          </Button>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };

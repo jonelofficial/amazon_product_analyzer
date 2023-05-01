@@ -1,15 +1,18 @@
 import { KeyboardAvoidingView, View } from "react-native";
 import AppScreen from "./app/AppScreen";
+import HowToUse from "./app/HowToUse";
 import {
   MD3LightTheme as DefaultTheme,
   Provider as PaperProvider,
+  Portal,
   configureFonts,
 } from "react-native-paper";
 import { useFonts } from "expo-font";
-import * as SplashScreen from "expo-splash-screen";
-import { useCallback } from "react";
+import { StatusBar } from "expo-status-bar";
+import { NavigationContainer } from "@react-navigation/native";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
-// SplashScreen.preventAutoHideAsync();
+const Stack = createNativeStackNavigator();
 
 export default function App() {
   const [fontsLoaded] = useFonts({
@@ -18,12 +21,6 @@ export default function App() {
     "OpenSans-Light": require("./assets/fonts/OpenSans-Light.ttf"),
     "OpenSans-Bold": require("./assets/fonts/OpenSans-Bold.ttf"),
   });
-
-  const onLayoutRootView = useCallback(async () => {
-    if (fontsLoaded) {
-      await SplashScreen.hideAsync();
-    }
-  }, [fontsLoaded]);
 
   if (!fontsLoaded) {
     return null;
@@ -86,7 +83,27 @@ export default function App() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
       >
-        <AppScreen />
+        <Portal>
+          <NavigationContainer>
+            <Stack.Navigator
+              screenOptions={{
+                headerShown: false,
+                animation: "slide_from_right",
+              }}
+            >
+              <Stack.Screen name="Home" component={AppScreen} />
+              <Stack.Screen
+                name="How"
+                component={HowToUse}
+                options={{
+                  headerShown: true,
+                  headerTitle: "How To Use",
+                }}
+              />
+            </Stack.Navigator>
+          </NavigationContainer>
+          <StatusBar style="auto" />
+        </Portal>
       </KeyboardAvoidingView>
     </PaperProvider>
   );
